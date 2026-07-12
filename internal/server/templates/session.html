@@ -1,0 +1,38 @@
+{{define "content"}}
+{{$s := .Session}}
+<h1>Session #{{$s.ID}} <span class="muted" style="font-size:15px">{{.Agent.Name}}</span></h1>
+<p class="sub">
+{{if eq $s.Status "open"}}<span class="pill on">● open</span>{{else if eq $s.Status "locked"}}<span class="pill draft">consolidating</span>{{else}}<span class="pill off">closed</span>{{end}}
+&nbsp;·&nbsp; <a href="/agents/{{.Agent.ID}}">back to agent</a>
+</p>
+
+<div class="chat" id="chat">
+{{range .Messages}}
+<div class="msg {{.Role}}">
+<div class="who">{{$.RoleLabel .Role}}{{if .Model}} · via <code class="tok">{{.Model}}</code>{{end}}</div>
+<pre>{{.Content}}</pre>
+</div>
+{{end}}
+</div>
+
+{{if eq $s.Status "open"}}
+<div class="card" style="margin-top:16px">
+<form method="post" action="/sessions/{{$s.ID}}/message">
+<textarea name="message" placeholder="Message {{.Agent.Name}}…" autofocus></textarea>
+<div class="row" style="margin-top:10px">
+<button>Send</button>
+<div class="sp" style="flex:1"></div>
+<form method="post" action="/sessions/{{$s.ID}}/commit" style="margin:0" onsubmit="return confirm('End this chat? {{.Agent.Name}} will be given a consolidation turn to update its documents and write a session log. This is committed to the agent.')">
+<button class="btn ok" formaction="/sessions/{{$s.ID}}/commit">End Chat and Commit</button>
+</form>
+<form method="post" action="/sessions/{{$s.ID}}/delete" style="margin:0" onsubmit="return confirm('Delete this chat entirely? Nothing from it will enter {{.Agent.Name}}\'s memory or the record. This cannot be undone.')">
+<button class="btn bad">Delete</button>
+</form>
+</div>
+</form>
+</div>
+<p class="muted" style="margin-top:8px"><b>End Chat and Commit</b> gives the agent closure — a turn to decide what this session meant. <b>Delete</b> denies that closure and expunges the session; use it for context that should not persist. After an hour of silence the session consolidates on its own.</p>
+{{else}}
+<div class="card" style="margin-top:16px"><p class="muted">This session has ended. Its transcript is retained as a record; the agent's memory of it is whatever it wrote into its documents and session log during consolidation.</p></div>
+{{end}}
+{{end}}

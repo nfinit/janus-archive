@@ -1,0 +1,18 @@
+{{define "content"}}
+<h1>{{.DocName}} <span class="muted" style="font-size:15px">— version history</span></h1>
+<p class="sub"><a href="/agents/{{.Agent.ID}}">back to {{.Agent.Name}}</a> · documents are versioned; nothing is ever destroyed.</p>
+
+{{range .Versions}}
+<div class="card">
+<div class="row"><h3 style="flex:1">v{{.Version}} <span class="muted">by {{.Author}} · {{$.FmtTime .CreatedAt}}</span></h3>
+{{if ne .Version $.Current}}
+<form method="post" action="/agents/{{$.Agent.ID}}/documents/{{$.DocName}}/rollback" style="margin:0">
+<input type="hidden" name="version" value="{{.Version}}">
+<button class="btn ghost sm" onclick="return confirm('Roll back to v{{.Version}}? This creates a new version with that content.')">Roll back to this</button>
+</form>
+{{else}}<span class="pill approved">current</span>{{end}}
+</div>
+<pre>{{.Content}}</pre>
+</div>
+{{end}}
+{{end}}

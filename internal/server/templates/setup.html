@@ -1,0 +1,14 @@
+{{define "content"}}
+<h1>Welcome to JANUS</h1>
+<p class="sub">First-run setup. Choose an administrator password to protect this console.</p>
+<div class="card" style="max-width:440px">
+<form method="post" action="/setup">
+<label>Administrator password</label>
+<input type="password" name="password" autofocus required>
+<label>Confirm password</label>
+<input type="password" name="confirm" required>
+<div style="margin-top:16px"><button>Create console</button></div>
+</form>
+</div>
+<p class="muted">JANUS Phase 0 has a single administrator identity. Transport security (TLS) is a deployment concern — run this console behind a reverse proxy or on a trusted network.</p>
+{{end}}

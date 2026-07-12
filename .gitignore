@@ -1,3 +1,17 @@
+# Provisional documentation and agent workspaces
+docs/
+workspace/
+
+# JANUS build artifacts and runtime state
+/build/
+*.db
+*.db-wal
+*.db-shm
+
+# Agent steering
+AGENTS.md
+CLAUDE.md
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

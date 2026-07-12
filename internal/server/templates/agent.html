@@ -1,0 +1,86 @@
+{{define "content"}}
+{{$a := .Agent}}
+<h1>{{$a.Name}} <span class="muted" style="font-size:15px">{{$a.Identifier}}</span></h1>
+<p class="sub">
+{{if eq $a.CharterStatus "approved"}}<span class="pill approved">charter approved</span>{{else}}<span class="pill draft">charter draft</span>{{end}}
+&nbsp;·&nbsp; model <code class="tok">{{$a.Model}}</code> via {{.EndpointName}}
+</p>
+
+<h2>Charter</h2>
+<div class="card">
+{{if $a.Charter}}<pre>{{$a.Charter}}</pre>{{else}}<p class="muted">No charter drafted yet.</p>{{end}}
+<div class="row" style="margin-top:12px">
+<form method="post" action="/agents/{{$a.ID}}/charter/draft" style="margin:0">
+<input type="text" name="guidance" placeholder="optional steering for a re-draft" style="width:280px;display:inline-block">
+<button class="btn sm ghost">{{if $a.Charter}}Re-draft{{else}}Draft charter{{end}}</button>
+</form>
+{{if and $a.Charter (ne $a.CharterStatus "approved")}}
+<form method="post" action="/agents/{{$a.ID}}/charter/approve" style="margin:0"><button class="btn sm ok">Approve charter</button></form>
+{{end}}
+</div>
+</div>
+
+<h2>Deployment</h2>
+<div class="card">
+{{if .Binding}}
+<p>Bound to a client instance{{if .Binding.LastHostname}} on <b>{{.Binding.LastHostname}}</b>{{end}}.
+{{if .Online}}<span class="pill on">● online</span>{{else}}<span class="pill off">○ offline</span>{{end}}</p>
+<p class="muted">Token: <code class="tok">{{.Binding.Token}}</code>{{if .Binding.LastSeen}} · last seen {{.LastSeenHuman}}{{end}}{{if .Binding.LastVersion}} · {{.Binding.LastVersion}}{{end}}</p>
+<form method="post" action="/agents/{{$a.ID}}/binding/delete" onsubmit="return confirm('Revoke this client binding?')" style="margin-top:8px"><button class="btn sm bad">Revoke binding</button></form>
+{{else}}
+<p class="muted">Not deployed to any client. Generate a token and install it in a janus-client config on the target host.</p>
+<form method="post" action="/agents/{{$a.ID}}/binding" class="row">
+<input type="text" name="label" placeholder="label, e.g. octane2" style="width:220px">
+<button class="btn sm">Generate token</button>
+</form>
+{{end}}
+</div>
+
+<h2 id="wake">Sessions</h2>
+<div class="card">
+{{if eq $a.CharterStatus "approved"}}
+{{if .ActiveSession}}
+<p>A session is {{.ActiveSession.Status}}. <a class="btn sm" href="/sessions/{{.ActiveSession.ID}}">Open chat</a></p>
+{{else}}
+<form method="post" action="/agents/{{$a.ID}}/wake">
+<label>Wake {{$a.Name}} with an opening message</label>
+<textarea name="message" placeholder="A question, a suggestion, or simply hello." style="min-height:70px"></textarea>
+<div style="margin-top:10px"><button>Wake agent</button></div>
+</form>
+{{end}}
+{{else}}
+<p class="muted">Approve the charter before waking this agent.</p>
+{{end}}
+</div>
+{{if .Sessions}}
+<table>
+<tr><th>#</th><th>Status</th><th>Opened</th><th></th></tr>
+{{range .Sessions}}
+<tr><td>{{.ID}}</td><td>{{.Status}}</td><td class="muted">{{$.FmtTime .OpenedAt}}</td>
+<td style="text-align:right"><a href="/sessions/{{.ID}}">view</a></td></tr>
+{{end}}
+</table>
+{{end}}
+
+<h2>Documents</h2>
+{{if .Documents}}
+{{range .Documents}}
+<div class="card">
+<div class="row"><h3 style="flex:1">{{.Name}} <span class="muted">v{{.CurrentVersion}}</span></h3>
+<a class="btn ghost sm" href="/agents/{{$a.ID}}/documents/{{.Name}}/history">history</a></div>
+<pre>{{.Content}}</pre>
+</div>
+{{end}}
+{{else}}
+<div class="card"><p class="muted">This agent has written no documents yet. It will author them (IDENTITY, PRACTICES, …) during its sessions.</p></div>
+{{end}}
+
+{{if .SessionLogs}}
+<h2>Recent session logs <span class="muted" style="font-size:13px">— the agent's own account</span></h2>
+{{range .SessionLogs}}
+<div class="card"><div class="muted" style="margin-bottom:6px">{{$.FmtTime .CreatedAt}}</div><pre>{{.Content}}</pre></div>
+{{end}}
+{{end}}
+
+<p style="margin-top:24px"><a class="muted" href="/agents/{{$a.ID}}/primer">view/edit primer</a></p>
+{{end}}

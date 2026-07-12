@@ -1,0 +1,8 @@
+{
+  "server_url": "http://127.0.0.1:8611",
+  "token": "REPLACE-WITH-TOKEN-FROM-CONSOLE",
+  "wait": 25,
+  "default_timeout_seconds": 60,
+  "max_timeout_seconds": 300,
+  "output_cap_kib": 64
+}

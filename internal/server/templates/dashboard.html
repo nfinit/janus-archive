@@ -1,0 +1,23 @@
+{{define "content"}}
+<h1>Dashboard</h1>
+<p class="sub">JANUS Phase 0 — {{len .Agents}} agent(s), {{len .Endpoints}} endpoint(s).</p>
+
+<h2>Agents</h2>
+{{if .Agents}}
+<table>
+<tr><th>Identifier</th><th>Name</th><th>Charter</th><th>Host</th><th></th></tr>
+{{range .Agents}}
+<tr>
+<td><a href="/agents/{{.Agent.ID}}">{{.Agent.Identifier}}</a></td>
+<td>{{.Agent.Name}}</td>
+<td>{{if eq .Agent.CharterStatus "approved"}}<span class="pill approved">approved</span>{{else}}<span class="pill draft">draft</span>{{end}}</td>
+<td>{{if .Online}}<span class="pill on">● {{.Host}}</span>{{else if .Bound}}<span class="pill off">○ {{.Host}}</span>{{else}}<span class="muted">unbound</span>{{end}}</td>
+<td style="text-align:right">{{if eq .Agent.CharterStatus "approved"}}<a class="btn sm" href="/agents/{{.Agent.ID}}#wake">Wake</a>{{end}}</td>
+</tr>
+{{end}}
+</table>
+{{else}}
+<div class="card"><p class="muted">No agents yet.</p></div>
+{{end}}
+<p style="margin-top:14px"><a class="btn" href="/agents/new">Create an agent</a></p>
+{{end}}

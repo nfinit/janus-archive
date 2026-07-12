@@ -1,0 +1,41 @@
+{{define "content"}}
+<h1>Endpoints</h1>
+<p class="sub">Model API endpoints and credentials. Agents reference an endpoint and a model ID.</p>
+
+{{if .Endpoints}}
+<table>
+<tr><th>Name</th><th>Kind</th><th>Base URL</th><th>Key</th><th></th></tr>
+{{range .Endpoints}}
+<tr>
+<td>{{.Name}}</td>
+<td>{{.Kind}}</td>
+<td class="muted">{{if .BaseURL}}{{.BaseURL}}{{else}}—{{end}}</td>
+<td>{{if .APIKey}}<span class="pill on">set</span>{{else}}<span class="pill off">none</span>{{end}}</td>
+<td style="text-align:right"><form method="post" action="/endpoints/{{.ID}}/delete" onsubmit="return confirm('Delete endpoint {{.Name}}?')" style="margin:0"><button class="btn ghost sm">Delete</button></form></td>
+</tr>
+{{end}}
+</table>
+{{else}}
+<div class="card"><p class="muted">No endpoints yet. The built-in <b>stub</b> kind lets you exercise the whole system without an API key.</p></div>
+{{end}}
+
+<h2>Add endpoint</h2>
+<div class="card" style="max-width:560px">
+<form method="post" action="/endpoints">
+<label>Name</label>
+<input type="text" name="name" placeholder="OpenRouter" required>
+<label>Kind</label>
+<select name="kind" onchange="document.getElementById('oa').style.display=this.value==='openai'?'block':'none'">
+<option value="openai">openai (OpenAI-compatible: OpenRouter, local servers, …)</option>
+<option value="stub">stub (built-in scripted test model, no key needed)</option>
+</select>
+<div id="oa">
+<label>Base URL</label>
+<input type="text" name="base_url" placeholder="https://openrouter.ai/api/v1">
+<label>API key</label>
+<input type="password" name="api_key" placeholder="sk-...">
+</div>
+<div style="margin-top:16px"><button>Add endpoint</button></div>
+</form>
+</div>
+{{end}}

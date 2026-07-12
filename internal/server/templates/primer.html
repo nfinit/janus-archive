@@ -1,0 +1,10 @@
+{{define "content"}}
+<h1>Deployment primer <span class="muted" style="font-size:15px">{{.Agent.Name}}</span></h1>
+<p class="sub"><a href="/agents/{{.Agent.ID}}">back to agent</a> · editing the primer re-drafts the charter for re-approval.</p>
+<div class="card">
+<form method="post" action="/agents/{{.Agent.ID}}/primer">
+<textarea name="primer" style="min-height:200px">{{.Agent.Primer}}</textarea>
+<div style="margin-top:12px"><button>Save &amp; re-draft charter</button></div>
+</form>
+</div>
+{{end}}

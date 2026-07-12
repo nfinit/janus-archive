@@ -1,0 +1,11 @@
+{{define "content"}}
+<h1>JANUS console</h1>
+<p class="sub">Administrator sign-in.</p>
+<div class="card" style="max-width:400px">
+<form method="post" action="/login">
+<label>Password</label>
+<input type="password" name="password" autofocus required>
+<div style="margin-top:16px"><button>Sign in</button></div>
+</form>
+</div>
+{{end}}

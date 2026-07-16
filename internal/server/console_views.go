@@ -18,7 +18,7 @@ func isOnline(lastSeen int64) bool {
 	return lastSeen != 0 && time.Since(time.Unix(lastSeen, 0)) < onlineWindow
 }
 
-// ---- dashboard ----
+// ---- agents list ----
 
 type agentRow struct {
 	Agent  *Agent
@@ -27,22 +27,17 @@ type agentRow struct {
 	Host   string
 }
 
-type dashboardData struct {
+type agentsData struct {
 	pageData
-	Agents    []agentRow
-	Endpoints []*Endpoint
+	Agents []agentRow
 }
 
-func (s *Server) dashboardVM(r *http.Request) (*dashboardData, error) {
+func (s *Server) agentRows() ([]agentRow, error) {
 	agents, err := s.store.Agents()
 	if err != nil {
 		return nil, err
 	}
-	eps, err := s.store.Endpoints()
-	if err != nil {
-		return nil, err
-	}
-	d := &dashboardData{pageData: s.base("Dashboard", r), Endpoints: eps}
+	rows := make([]agentRow, 0, len(agents))
 	for _, a := range agents {
 		row := agentRow{Agent: a}
 		if b, _ := s.store.AgentBinding(a.ID); b != nil {
@@ -53,7 +48,90 @@ func (s *Server) dashboardVM(r *http.Request) (*dashboardData, error) {
 				row.Host = "bound"
 			}
 		}
-		d.Agents = append(d.Agents, row)
+		rows = append(rows, row)
+	}
+	return rows, nil
+}
+
+func (s *Server) agentsVM(r *http.Request) (*agentsData, error) {
+	rows, err := s.agentRows()
+	if err != nil {
+		return nil, err
+	}
+	return &agentsData{pageData: s.base("Agents", r), Agents: rows}, nil
+}
+
+// ---- dashboard ----
+
+// activeSessionRow is one live session on the overview.
+type activeSessionRow struct {
+	Session   *Session
+	AgentName string
+	Busy      bool
+}
+
+// attentionItem is one thing the administrator should probably look at.
+type attentionItem struct {
+	Text string
+	Href string
+}
+
+type dashboardData struct {
+	pageData
+	AgentCount    int
+	EndpointCount int
+	Active        []activeSessionRow
+	Attention     []attentionItem
+}
+
+func (s *Server) dashboardVM(r *http.Request) (*dashboardData, error) {
+	rows, err := s.agentRows()
+	if err != nil {
+		return nil, err
+	}
+	eps, err := s.store.Endpoints()
+	if err != nil {
+		return nil, err
+	}
+	d := &dashboardData{
+		pageData:      s.base("Dashboard", r),
+		AgentCount:    len(rows),
+		EndpointCount: len(eps),
+	}
+
+	// Live sessions, with turn state.
+	active, _ := s.store.ActiveSessions()
+	for _, sess := range active {
+		row := activeSessionRow{Session: sess, Busy: s.gate.running(sess.ID)}
+		if a, err := s.store.Agent(sess.AgentID); err == nil {
+			row.AgentName = a.Name
+		}
+		d.Active = append(d.Active, row)
+	}
+
+	// Things needing an administrator's eye. Ordered by how actionable
+	// they are: charters block wakes entirely, dead clients block hands,
+	// retirements are advance warning.
+	for _, row := range rows {
+		href := "/agents/" + strconv.FormatInt(row.Agent.ID, 10)
+		if row.Agent.CharterStatus != "approved" {
+			d.Attention = append(d.Attention, attentionItem{
+				Text: row.Agent.Name + " — charter awaiting review and approval", Href: href})
+		}
+	}
+	for _, row := range rows {
+		href := "/agents/" + strconv.FormatInt(row.Agent.ID, 10)
+		if row.Bound && !row.Online {
+			d.Attention = append(d.Attention, attentionItem{
+				Text: row.Agent.Name + " — client offline (" + row.Host + ")", Href: href})
+		}
+	}
+	for _, row := range rows {
+		href := "/agents/" + strconv.FormatInt(row.Agent.ID, 10)
+		if mi := s.modelInfo(row.Agent); mi != nil && mi.ExpirationDate != "" {
+			d.Attention = append(d.Attention, attentionItem{
+				Text: row.Agent.Name + " — provider retires " + mi.Name + " on " + mi.ExpirationDate, Href: href})
+		}
 	}
 	return d, nil
 }

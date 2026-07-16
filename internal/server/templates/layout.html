@@ -14,9 +14,9 @@ header{border-bottom:1px solid var(--line);background:var(--panel);padding:0 20p
 header .wrap{max-width:980px;margin:0 auto;display:flex;align-items:center;gap:20px;height:52px}
 header .brand{font-weight:700;letter-spacing:.5px}
 header .brand span{color:var(--acc)}
+header .brand .phase{color:var(--dim);font-size:12px;font-weight:400;letter-spacing:0;margin-left:2px}
 header nav{display:flex;gap:16px;font-size:14px}
 header .sp{flex:1}
-header .ver{color:var(--dim);font-size:12px}
 main{max-width:980px;margin:0 auto;padding:24px 20px 60px}
 h1{font-size:22px;margin:0 0 4px}h2{font-size:17px;margin:28px 0 10px;border-bottom:1px solid var(--line);padding-bottom:6px}
 .sub{color:var(--dim);margin:0 0 20px}
@@ -59,14 +59,13 @@ code.tok{font-family:ui-monospace,monospace;background:var(--bg);border:1px soli
 </head>
 <body>
 <header><div class="wrap">
-<div class="brand">JA<span>N</span>US</div>
+<div class="brand">JA<span>N</span>US <span class="phase">{{.Version}}</span></div>
 {{if .Authed}}<nav>
 <a href="/">Dashboard</a>
 <a href="/endpoints">Endpoints</a>
 <a href="/agents">Agents</a>
 </nav>{{end}}
 <div class="sp"></div>
-<div class="ver">{{.Version}}</div>
 {{if .Authed}}<form method="post" action="/logout" style="margin:0"><button class="btn ghost sm">Log out</button></form>{{end}}
 </div></header>
 <main>

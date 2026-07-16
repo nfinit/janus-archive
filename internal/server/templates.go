@@ -22,6 +22,7 @@ var pageFiles = map[string]string{
 	"setup":     "templates/setup.html",
 	"login":     "templates/login.html",
 	"dashboard": "templates/dashboard.html",
+	"agents":    "templates/agents.html",
 	"endpoints": "templates/endpoints.html",
 	"agent_new": "templates/agent_new.html",
 	"agent":     "templates/agent.html",

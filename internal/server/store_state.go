@@ -166,6 +166,25 @@ func (s *Store) SessionContext(id int64) (systemContext, toolsJSON string, err e
 	return
 }
 
+// ActiveSessions returns open and locked sessions across all agents,
+// newest first — the dashboard's "what is happening right now" view.
+func (s *Store) ActiveSessions() ([]*Session, error) {
+	rows, err := s.db.Query(`SELECT ` + sessionCols + ` FROM sessions WHERE status IN ('open','locked') ORDER BY id DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*Session
+	for rows.Next() {
+		sess, err := scanSession(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, sess)
+	}
+	return out, rows.Err()
+}
+
 // LockedSessions returns sessions stuck in 'locked'. Outside of a running
 // consolidation this state should not exist; at startup it means the server
 // died mid-consolidation.

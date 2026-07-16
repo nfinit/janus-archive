@@ -12,7 +12,7 @@ const (
 	Major = 0
 	Minor = 0
 	Patch = 0
-	Build = 11
+	Build = 13
 )
 
 // Number returns the bare version number, e.g. "0.0.0.1".
@@ -20,9 +20,15 @@ func Number() string {
 	return fmt.Sprintf("%d.%d.%d.%d", Major, Minor, Patch, Build)
 }
 
+// Phase returns the phase-prefixed version without the product name,
+// e.g. "Phase 0.0.0.1" — for display beside an existing JANUS wordmark.
+func Phase() string {
+	return "Phase " + Number()
+}
+
 // Server returns the server version string, e.g. "JANUS Phase 0.0.0.1".
 func Server() string {
-	return "JANUS Phase " + Number()
+	return "JANUS " + Phase()
 }
 
 // Client returns the client version string, e.g. "JANUS Client 0.0.0.1".

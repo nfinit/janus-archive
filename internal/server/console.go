@@ -39,7 +39,7 @@ func (s *Server) Handler() http.Handler {
 }
 
 func (s *Server) base(title string, r *http.Request) pageData {
-	return pageData{Title: title, Version: version.Server(), Authed: s.authed(r)}
+	return pageData{Title: title, Version: version.Phase(), Authed: s.authed(r)}
 }
 
 func (s *Server) render(w http.ResponseWriter, page string, data any) {
@@ -197,7 +197,12 @@ func (s *Server) hEndpointAction(w http.ResponseWriter, r *http.Request) {
 // ---- agents ----
 
 func (s *Server) hAgents(w http.ResponseWriter, r *http.Request) {
-	redirect(w, r, "/") // dashboard is the agent list
+	vm, err := s.agentsVM(r)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	s.render(w, "agents", vm)
 }
 
 func (s *Server) hAgentNew(w http.ResponseWriter, r *http.Request) {

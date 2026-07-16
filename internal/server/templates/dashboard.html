@@ -1,23 +1,35 @@
 {{define "content"}}
 <h1>Dashboard</h1>
-<p class="sub">JANUS Phase 0 — {{len .Agents}} agent(s), {{len .Endpoints}} endpoint(s).</p>
+<p class="sub"><a href="/agents">{{.AgentCount}} agent(s)</a> · <a href="/endpoints">{{.EndpointCount}} endpoint(s)</a></p>
 
-<h2>Agents</h2>
-{{if .Agents}}
+<h2>Active sessions</h2>
+{{if .Active}}
 <table>
-<tr><th>Identifier</th><th>Name</th><th>Charter</th><th>Host</th><th></th></tr>
-{{range .Agents}}
+<tr><th>#</th><th>Agent</th><th>Status</th><th>Opened</th><th></th></tr>
+{{range .Active}}
 <tr>
-<td><a href="/agents/{{.Agent.ID}}">{{.Agent.Identifier}}</a></td>
-<td>{{.Agent.Name}}</td>
-<td>{{if eq .Agent.CharterStatus "approved"}}<span class="pill approved">approved</span>{{else}}<span class="pill draft">draft</span>{{end}}</td>
-<td>{{if .Online}}<span class="pill on">● {{.Host}}</span>{{else if .Bound}}<span class="pill off">○ {{.Host}}</span>{{else}}<span class="muted">unbound</span>{{end}}</td>
-<td style="text-align:right">{{if eq .Agent.CharterStatus "approved"}}<a class="btn sm" href="/agents/{{.Agent.ID}}#wake">Wake</a>{{end}}</td>
+<td>{{.Session.ID}}</td>
+<td>{{.AgentName}}</td>
+<td>{{if .Busy}}{{if eq .Session.Status "locked"}}<span class="pill draft">consolidating</span>{{else}}<span class="pill draft">responding</span>{{end}}{{else}}<span class="pill on">● open</span>{{end}}</td>
+<td class="muted">{{$.FmtTime .Session.OpenedAt}}</td>
+<td style="text-align:right"><a class="btn sm" href="/sessions/{{.Session.ID}}">Open chat</a></td>
 </tr>
 {{end}}
 </table>
 {{else}}
-<div class="card"><p class="muted">No agents yet.</p></div>
+<div class="card"><p class="muted">No sessions are active. Wake an agent from its <a href="/agents">agent page</a> to begin one.</p></div>
 {{end}}
+
+<h2>Needs attention</h2>
+{{if .Attention}}
+<div class="card">
+{{range .Attention}}
+<p style="margin:4px 0">⚠ <a href="{{.Href}}">{{.Text}}</a></p>
+{{end}}
+</div>
+{{else}}
+<div class="card"><p class="muted">Nothing needs attention.</p></div>
+{{end}}
+
 <p style="margin-top:14px"><a class="btn" href="/agents/new">Create an agent</a></p>
 {{end}}

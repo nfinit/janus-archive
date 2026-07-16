@@ -139,12 +139,14 @@ func fetchCatalog(e *Endpoint) *modelCatalog {
 	}
 
 	models := make(map[string]*ModelInfo, len(envelope.Data))
+	canonicals := make(map[string]*ModelInfo)
 	for _, raw := range envelope.Data {
 		mi := &ModelInfo{}
 		// Providers disagree on field types (dates as strings vs null,
 		// etc.); decode leniently and keep whatever parses.
 		var loose struct {
 			ID              string `json:"id"`
+			CanonicalSlug   string `json:"canonical_slug"`
 			Name            string `json:"name"`
 			Description     string `json:"description"`
 			ContextLength   int64  `json:"context_length"`
@@ -161,6 +163,18 @@ func fetchCatalog(e *Endpoint) *modelCatalog {
 		mi.KnowledgeCutoff = looseDate(loose.KnowledgeCutoff)
 		mi.ExpirationDate = looseDate(loose.ExpirationDate)
 		models[mi.ID] = mi
+		if loose.CanonicalSlug != "" && loose.CanonicalSlug != mi.ID {
+			canonicals[loose.CanonicalSlug] = mi
+		}
+	}
+	// A model is also addressable by its dated canonical slug (e.g. id
+	// "poolside/laguna-m.1", canonical "poolside/laguna-m.1-20260312").
+	// Index those in a second pass so an id always wins over a canonical
+	// if a provider ever publishes the same string as both.
+	for slug, mi := range canonicals {
+		if _, taken := models[slug]; !taken {
+			models[slug] = mi
+		}
 	}
 	if len(models) == 0 {
 		return fail

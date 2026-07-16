@@ -5,6 +5,7 @@ package server
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -44,7 +45,7 @@ func (s *Server) hAgentRoutes(w http.ResponseWriter, r *http.Request) {
 	case "binding":
 		s.hBinding(w, r, a, parts)
 	case "wake":
-		s.hWake(ctx, w, r, a)
+		s.hWake(w, r, a)
 	case "primer":
 		s.hPrimer(ctx, w, r, a)
 	case "identifier":
@@ -104,7 +105,7 @@ func (s *Server) hBinding(w http.ResponseWriter, r *http.Request, a *Agent, part
 	redirect(w, r, "/agents/"+strconv.FormatInt(a.ID, 10))
 }
 
-func (s *Server) hWake(ctx context.Context, w http.ResponseWriter, r *http.Request, a *Agent) {
+func (s *Server) hWake(w http.ResponseWriter, r *http.Request, a *Agent) {
 	if r.Method != http.MethodPost {
 		http.NotFound(w, r)
 		return
@@ -115,10 +116,10 @@ func (s *Server) hWake(ctx context.Context, w http.ResponseWriter, r *http.Reque
 		return
 	}
 	if msg := strings.TrimSpace(r.FormValue("message")); msg != "" {
-		if err := s.SendMessage(ctx, sess.ID, msg); err != nil {
-			// Session exists; surface the error inside the chat view.
-			redirect(w, r, "/sessions/"+strconv.FormatInt(sess.ID, 10))
-			return
+		// Launches the opening turn in the background; the redirect lands on
+		// the live session page, which polls while the agent responds.
+		if err := s.SendMessage(sess.ID, msg); err != nil {
+			log.Printf("session %d: opening message: %v", sess.ID, err)
 		}
 	}
 	redirect(w, r, "/sessions/"+strconv.FormatInt(sess.ID, 10))
@@ -258,31 +259,35 @@ func (s *Server) hSessionRoutes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(parts) == 2 {
-		s.renderSession(w, r, sess)
+		s.renderSession(w, r, sess, "", "")
 		return
 	}
-
-	ctx, cancel := context.WithTimeout(r.Context(), 120*time.Second)
-	defer cancel()
 
 	switch parts[2] {
 	case "message":
 		if r.Method == http.MethodPost {
 			if msg := strings.TrimSpace(r.FormValue("message")); msg != "" {
-				s.SendMessage(ctx, sess.ID, msg)
+				if err := s.SendMessage(sess.ID, msg); err != nil {
+					// Never drop an admin message silently: show why.
+					s.renderSession(w, r, sess, "Message not delivered: "+err.Error(), "err")
+					return
+				}
 			}
 		}
 		redirect(w, r, "/sessions/"+strconv.FormatInt(sess.ID, 10))
 	case "commit":
 		if r.Method == http.MethodPost {
-			s.Consolidate(ctx, sess.ID)
+			if err := s.ConsolidateAsync(sess.ID); err != nil {
+				s.renderSession(w, r, sess, "Could not end the chat: "+err.Error(), "err")
+				return
+			}
 		}
 		redirect(w, r, "/sessions/"+strconv.FormatInt(sess.ID, 10))
 	case "delete":
 		if r.Method == http.MethodPost {
 			agentID := sess.AgentID
 			if err := s.DeleteSession(sess.ID); err != nil {
-				redirect(w, r, "/sessions/"+strconv.FormatInt(sess.ID, 10))
+				s.renderSession(w, r, sess, "Could not delete: "+err.Error(), "err")
 				return
 			}
 			redirect(w, r, "/agents/"+strconv.FormatInt(agentID, 10))

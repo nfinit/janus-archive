@@ -7,7 +7,8 @@ import (
 )
 
 const richCatalog = `{"data":[
-	{"id":"poolside/laguna-m.1","name":"Poolside: Laguna M.1",
+	{"id":"poolside/laguna-m.1","canonical_slug":"poolside/laguna-m.1-20260312",
+	 "name":"Poolside: Laguna M.1",
 	 "description":"Flagship coding agent model.","context_length":262144,
 	 "knowledge_cutoff":"2025-11-01","expiration_date":null},
 	{"id":"tencent/hy3:free","name":"Tencent: HY3 (free)",
@@ -53,6 +54,17 @@ func TestModelMetaLookup(t *testing.T) {
 	// resolve to its base entry.
 	if mi := m.Lookup(ep, "poolside/laguna-m.1:nitro"); mi == nil || mi.Name != "Poolside: Laguna M.1" {
 		t.Errorf("variant suffix fallback failed: %+v", mi)
+	}
+
+	// Dated canonical slugs resolve too — including with a variant suffix.
+	// This is the exact shape of a model pinned from a routed turn
+	// (regression: a live agent's "…-20260312:free" slug rendered as a bare
+	// slug everywhere because only ids were indexed).
+	if mi := m.Lookup(ep, "poolside/laguna-m.1-20260312"); mi == nil || mi.Name != "Poolside: Laguna M.1" {
+		t.Errorf("canonical slug lookup failed: %+v", mi)
+	}
+	if mi := m.Lookup(ep, "poolside/laguna-m.1-20260312:free"); mi == nil || mi.Name != "Poolside: Laguna M.1" {
+		t.Errorf("canonical slug + variant lookup failed: %+v", mi)
 	}
 
 	if mi := m.Lookup(ep, "no/such-model"); mi != nil {

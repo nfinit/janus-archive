@@ -57,6 +57,11 @@ type pageData struct {
 	Authed    bool
 	Flash     string
 	FlashKind string // "ok" | "err"
+
+	// Refresh, when nonzero, makes the page reload itself every N seconds
+	// via a meta refresh tag — the console's zero-JavaScript way to follow
+	// work happening in the background.
+	Refresh int
 }
 
 func (pageData) FmtTime(unix int64) string {

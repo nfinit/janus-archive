@@ -14,6 +14,7 @@ import (
 var (
 	errNotApproved    = errors.New("agent charter is not approved")
 	errSessionNotOpen = errors.New("session is not open")
+	errAgentBusy      = errors.New("the agent is still responding")
 )
 
 // Server ties together the store, the client hub, and the web console.
@@ -23,6 +24,7 @@ type Server struct {
 	auth  *authManager
 	tmpl  *templates
 	meta  *modelMeta
+	gate  *turnGate
 }
 
 func New(store *Store) (*Server, error) {
@@ -30,7 +32,7 @@ func New(store *Store) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Server{store: store, hub: NewHub(), auth: newAuthManager(), tmpl: tmpl, meta: newModelMeta()}, nil
+	return &Server{store: store, hub: NewHub(), auth: newAuthManager(), tmpl: tmpl, meta: newModelMeta(), gate: newTurnGate()}, nil
 }
 
 // modelInfo looks up catalog metadata for an agent's configured model.

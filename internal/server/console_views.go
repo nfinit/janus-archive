@@ -119,6 +119,10 @@ type sessionData struct {
 	SystemContext string
 	Tools         []backend.Tool
 
+	// Busy is true while a turn is in flight; the page then self-refreshes
+	// and withholds the input controls.
+	Busy bool
+
 	// modelNames maps served-model slugs to provider display names, for
 	// transcript "via" labels. Missing entries render as the slug.
 	modelNames map[string]string
@@ -152,7 +156,7 @@ func (d *sessionData) SpeakerLabel(role string) string {
 	return d.RoleLabel(role)
 }
 
-func (s *Server) renderSession(w http.ResponseWriter, r *http.Request, sess *Session) {
+func (s *Server) renderSession(w http.ResponseWriter, r *http.Request, sess *Session, flash, kind string) {
 	a, err := s.store.Agent(sess.AgentID)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
@@ -162,6 +166,13 @@ func (s *Server) renderSession(w http.ResponseWriter, r *http.Request, sess *Ses
 	d := &sessionData{
 		pageData: s.base("Session "+strconv.FormatInt(sess.ID, 10), r),
 		Agent:    a, Session: sess, Messages: msgs,
+	}
+	d.Flash, d.FlashKind = flash, kind
+	d.Busy = s.gate.running(sess.ID)
+	if d.Busy {
+		// Self-refresh while the turn runs: no JavaScript, just a meta
+		// refresh that disappears once the agent has answered.
+		d.Refresh = 3
 	}
 	if sysCtx, toolsJSON, err := s.store.SessionContext(sess.ID); err == nil {
 		d.SystemContext = sysCtx

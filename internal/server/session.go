@@ -16,6 +16,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"time"
 
@@ -31,7 +32,30 @@ func (s *Server) Wake(agentID int64) (*Session, error) {
 	if a.CharterStatus != "approved" {
 		return nil, errNotApproved
 	}
-	return s.store.CreateSession(a.ID)
+	sess, err := s.store.CreateSession(a.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Snapshot what the agent will see, exactly as assembled at this moment.
+	// Diagnostics only — turns recompute context live — so failure to
+	// snapshot is logged, not fatal. (Documents written mid-session enter
+	// later turns; the snapshot is the wake-time truth, and is labeled so.)
+	if sysCtx, err := s.systemContext(a); err == nil {
+		toolsJSON := ""
+		if tools, err := s.tools(a); err == nil {
+			if buf, err := json.Marshal(tools); err == nil {
+				toolsJSON = string(buf)
+			}
+		}
+		if err := s.store.SetSessionContext(sess.ID, sysCtx, toolsJSON); err != nil {
+			log.Printf("session %d: context snapshot not saved: %v", sess.ID, err)
+		}
+	} else {
+		log.Printf("session %d: context snapshot not assembled: %v", sess.ID, err)
+	}
+
+	return sess, nil
 }
 
 // SendMessage delivers an admin message into an open session and runs the

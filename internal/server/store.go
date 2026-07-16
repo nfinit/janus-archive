@@ -47,6 +47,17 @@ func migrate(db *sql.DB) error {
 			return err
 		}
 	}
+	// Wake-time context snapshot (0.0.0.4): what the agent actually saw when
+	// the session opened. Sessions predating this have empty snapshots, which
+	// the console reports honestly rather than reconstructing from current
+	// state (documents move on; a reconstruction would be a quiet lie).
+	for _, col := range []string{"system_context", "tools_json"} {
+		if !hasColumn(db, "sessions", col) {
+			if _, err := db.Exec(`ALTER TABLE sessions ADD COLUMN ` + col + ` TEXT NOT NULL DEFAULT ''`); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 

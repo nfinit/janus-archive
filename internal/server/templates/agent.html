@@ -6,6 +6,30 @@
 &nbsp;·&nbsp; model <code class="tok">{{$a.Model}}</code> via {{.EndpointName}}
 </p>
 
+<details style="margin:-6px 0 14px">
+<summary class="muted" style="cursor:pointer;font-size:13px">rename identifier</summary>
+<form method="post" action="/agents/{{$a.ID}}/identifier" class="row" style="margin-top:8px">
+<input type="text" name="identifier" value="{{$a.Identifier}}" required style="width:240px">
+<button class="btn sm">Rename</button>
+</form>
+<p class="muted" style="font-size:12px;margin-top:6px">The identifier is the console's handle for this agent. Renaming it does not touch the agent's name, memory, token, or client.</p>
+</details>
+
+<details style="margin:-6px 0 14px">
+<summary class="muted" style="cursor:pointer;font-size:13px">change model / endpoint</summary>
+<form method="post" action="/agents/{{$a.ID}}/model" style="margin-top:8px">
+<div class="row">
+<select name="endpoint_id" style="width:200px">
+{{range .Endpoints}}<option value="{{.ID}}" {{if eq .ID $a.EndpointID}}selected{{end}}>{{.Name}} ({{.Kind}})</option>{{end}}
+</select>
+<input type="text" name="model" value="{{$a.Model}}" required style="width:280px" placeholder="model slug, e.g. poolside/laguna-m.1">
+<button class="btn sm">Update</button>
+</div>
+<label style="margin-top:8px;display:block"><input type="checkbox" name="model_aware" style="width:auto;display:inline" {{if $a.ModelAware}}checked{{end}}> Tell the agent which model it is running on</label>
+</form>
+<p class="muted" style="font-size:12px;margin-top:6px">For outages, provider changes, deprecated slugs, or a model entered wrong at creation. Charter, memory, and binding are untouched; the change takes effect on the agent's next turn. Nothing is validated against the provider — a bad slug will surface as a backend error in the next session.</p>
+</details>
+
 <h2>Charter</h2>
 <div class="card">
 {{if $a.Charter}}<pre>{{$a.Charter}}</pre>{{else}}<p class="muted">No charter drafted yet.</p>{{end}}

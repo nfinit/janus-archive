@@ -149,6 +149,23 @@ func (s *Store) AgentSessions(agentID int64) ([]*Session, error) {
 	return out, rows.Err()
 }
 
+// SetSessionContext stores the wake-time context snapshot: the system prompt
+// and tool menu exactly as assembled when the session opened. Kept out of the
+// Session struct — only the session detail view ever needs these blobs.
+func (s *Store) SetSessionContext(id int64, systemContext, toolsJSON string) error {
+	_, err := s.db.Exec(`UPDATE sessions SET system_context=?, tools_json=? WHERE id=?`,
+		systemContext, toolsJSON, id)
+	return err
+}
+
+// SessionContext returns the wake-time snapshot. Both values are empty for
+// sessions that predate snapshot capture.
+func (s *Store) SessionContext(id int64) (systemContext, toolsJSON string, err error) {
+	err = s.db.QueryRow(`SELECT system_context, tools_json FROM sessions WHERE id=?`, id).
+		Scan(&systemContext, &toolsJSON)
+	return
+}
+
 // IdleOpenSessions returns open sessions whose last activity predates cutoff.
 func (s *Store) IdleOpenSessions(cutoff int64) ([]*Session, error) {
 	rows, err := s.db.Query(`SELECT `+sessionCols+` FROM sessions WHERE status='open' AND last_activity<?`, cutoff)

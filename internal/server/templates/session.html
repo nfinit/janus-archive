@@ -6,10 +6,33 @@
 &nbsp;·&nbsp; <a href="/agents/{{.Agent.ID}}">back to agent</a>
 </p>
 
+<details class="card" style="margin-bottom:16px">
+<summary class="muted" style="cursor:pointer">What {{.Agent.Name}} sees — wake-time context snapshot</summary>
+{{if .SystemContext}}
+<p class="muted" style="font-size:12px;margin-top:10px">Captured at the moment this session opened. Context is reassembled on every turn, so documents written during the session enter later turns — this panel is the opening state, not a live view.</p>
+<h3 style="margin-top:12px">System prompt</h3>
+<pre>{{.SystemContext}}</pre>
+{{if .Tools}}
+<h3 style="margin-top:14px">Tools offered</h3>
+{{range .Tools}}
+<div style="margin-bottom:10px">
+<div><code class="tok">{{.Name}}</code> <span class="muted">— {{.Description}}</span></div>
+<details style="margin-top:4px">
+<summary class="muted" style="font-size:12px;cursor:pointer">parameter schema</summary>
+<pre>{{$.ToolParams .}}</pre>
+</details>
+</div>
+{{end}}
+{{end}}
+{{else}}
+<p class="muted" style="margin-top:10px">Not captured — this session predates wake-time context snapshots (added in 0.0.0.4).</p>
+{{end}}
+</details>
+
 <div class="chat" id="chat">
 {{range .Messages}}
 <div class="msg {{.Role}}">
-<div class="who">{{$.RoleLabel .Role}}{{if .Model}} · via <code class="tok">{{.Model}}</code>{{end}}</div>
+<div class="who">{{$.SpeakerLabel .Role}}{{if .Model}} · via <code class="tok">{{.Model}}</code>{{end}}</div>
 <pre>{{.Content}}</pre>
 </div>
 {{end}}

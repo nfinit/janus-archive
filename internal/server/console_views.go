@@ -3,9 +3,13 @@ package server
 // View-model assembly for the console's data-heavy pages.
 
 import (
+	"bytes"
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/nfinit/janus/internal/backend"
 )
 
 const onlineWindow = 2 * time.Minute
@@ -60,6 +64,7 @@ type agentData struct {
 	pageData
 	Agent         *Agent
 	EndpointName  string
+	Endpoints     []*Endpoint // for the change-model form
 	Binding       *Binding
 	Online        bool
 	LastSeenHuman string
@@ -76,6 +81,7 @@ func (s *Server) renderAgent(w http.ResponseWriter, r *http.Request, a *Agent, f
 	if e, err := s.store.Endpoint(a.EndpointID); err == nil {
 		d.EndpointName = e.Name
 	}
+	d.Endpoints, _ = s.store.Endpoints()
 	if b, _ := s.store.AgentBinding(a.ID); b != nil {
 		d.Binding = b
 		d.Online = isOnline(b.LastSeen)
@@ -104,6 +110,31 @@ type sessionData struct {
 	Agent    *Agent
 	Session  *Session
 	Messages []*Message
+
+	// Wake-time context snapshot: what the agent actually saw when this
+	// session opened. Empty SystemContext means the session predates
+	// snapshot capture (0.0.0.4).
+	SystemContext string
+	Tools         []backend.Tool
+}
+
+// ToolParams pretty-prints a tool's parameter schema for the context panel.
+func (sessionData) ToolParams(t backend.Tool) string {
+	var buf bytes.Buffer
+	if err := json.Indent(&buf, t.Parameters, "", "  "); err != nil {
+		return string(t.Parameters)
+	}
+	return buf.String()
+}
+
+// SpeakerLabel names a message's speaker. The agent's own turns carry its
+// chosen name rather than the generic "agent" role label; every other role
+// falls through to RoleLabel.
+func (d *sessionData) SpeakerLabel(role string) string {
+	if role == RoleAgent && d.Agent != nil && d.Agent.Name != "" {
+		return d.Agent.Name
+	}
+	return d.RoleLabel(role)
 }
 
 func (s *Server) renderSession(w http.ResponseWriter, r *http.Request, sess *Session) {
@@ -116,6 +147,12 @@ func (s *Server) renderSession(w http.ResponseWriter, r *http.Request, sess *Ses
 	d := &sessionData{
 		pageData: s.base("Session "+strconv.FormatInt(sess.ID, 10), r),
 		Agent:    a, Session: sess, Messages: msgs,
+	}
+	if sysCtx, toolsJSON, err := s.store.SessionContext(sess.ID); err == nil {
+		d.SystemContext = sysCtx
+		if toolsJSON != "" {
+			json.Unmarshal([]byte(toolsJSON), &d.Tools) // best-effort; empty on failure
+		}
 	}
 	s.render(w, "session", d)
 }

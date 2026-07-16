@@ -47,6 +47,10 @@ func (s *Server) hAgentRoutes(w http.ResponseWriter, r *http.Request) {
 		s.hWake(ctx, w, r, a)
 	case "primer":
 		s.hPrimer(ctx, w, r, a)
+	case "identifier":
+		s.hIdentifier(w, r, a)
+	case "model":
+		s.hModel(w, r, a)
 	case "documents":
 		s.hDocuments(w, r, a, parts)
 	default:
@@ -137,6 +141,68 @@ func (s *Server) hPrimer(ctx context.Context, w http.ResponseWriter, r *http.Req
 		Agent *Agent
 	}{s.base("Primer", r), a}
 	s.render(w, "primer", d)
+}
+
+// hIdentifier renames the agent's server-side handle. The identifier never
+// reaches the agent or its client — bindings, sessions and documents all key
+// on the agent ID — so a rename is purely an administrative relabeling.
+func (s *Server) hIdentifier(w http.ResponseWriter, r *http.Request, a *Agent) {
+	if r.Method != http.MethodPost {
+		http.NotFound(w, r)
+		return
+	}
+	ident := strings.TrimSpace(r.FormValue("identifier"))
+	if ident == "" {
+		s.renderAgent(w, r, a, "Identifier cannot be empty.", "err")
+		return
+	}
+	old := a.Identifier
+	a.Identifier = ident
+	if err := s.store.UpdateAgent(a); err != nil {
+		a.Identifier = old // don't render unsaved state
+		s.renderAgent(w, r, a, "Could not rename: "+err.Error(), "err")
+		return
+	}
+	redirect(w, r, "/agents/"+strconv.FormatInt(a.ID, 10))
+}
+
+// hModel repoints the agent at a different endpoint, model, or both, and
+// owns the model_aware flag. Exists for the realities of hosted models:
+// outages, provider changes, deprecations, or a slug simply entered wrong at
+// creation. Deliberately touches nothing else — charter, documents, session
+// logs and binding all persist; the agent's continuity is its memory, not
+// its substrate. Takes effect on the next turn (context and backend are
+// assembled per turn), which is exactly what an outage rescue needs.
+func (s *Server) hModel(w http.ResponseWriter, r *http.Request, a *Agent) {
+	if r.Method != http.MethodPost {
+		http.NotFound(w, r)
+		return
+	}
+	model := strings.TrimSpace(r.FormValue("model"))
+	if model == "" {
+		s.renderAgent(w, r, a, "Model cannot be empty.", "err")
+		return
+	}
+	endpointID, err := strconv.ParseInt(r.FormValue("endpoint_id"), 10, 64)
+	if err != nil {
+		s.renderAgent(w, r, a, "Choose an endpoint.", "err")
+		return
+	}
+	if _, err := s.store.Endpoint(endpointID); err != nil {
+		s.renderAgent(w, r, a, "No such endpoint.", "err")
+		return
+	}
+
+	oldEndpoint, oldModel, oldAware := a.EndpointID, a.Model, a.ModelAware
+	a.EndpointID = endpointID
+	a.Model = model
+	a.ModelAware = r.FormValue("model_aware") != ""
+	if err := s.store.UpdateAgent(a); err != nil {
+		a.EndpointID, a.Model, a.ModelAware = oldEndpoint, oldModel, oldAware
+		s.renderAgent(w, r, a, "Could not update model: "+err.Error(), "err")
+		return
+	}
+	redirect(w, r, "/agents/"+strconv.FormatInt(a.ID, 10))
 }
 
 func (s *Server) hDocuments(w http.ResponseWriter, r *http.Request, a *Agent, parts []string) {

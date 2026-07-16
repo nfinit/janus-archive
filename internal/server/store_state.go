@@ -166,6 +166,26 @@ func (s *Store) SessionContext(id int64) (systemContext, toolsJSON string, err e
 	return
 }
 
+// LockedSessions returns sessions stuck in 'locked'. Outside of a running
+// consolidation this state should not exist; at startup it means the server
+// died mid-consolidation.
+func (s *Store) LockedSessions() ([]*Session, error) {
+	rows, err := s.db.Query(`SELECT ` + sessionCols + ` FROM sessions WHERE status='locked'`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*Session
+	for rows.Next() {
+		sess, err := scanSession(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, sess)
+	}
+	return out, rows.Err()
+}
+
 // IdleOpenSessions returns open sessions whose last activity predates cutoff.
 func (s *Store) IdleOpenSessions(cutoff int64) ([]*Session, error) {
 	rows, err := s.db.Query(`SELECT `+sessionCols+` FROM sessions WHERE status='open' AND last_activity<?`, cutoff)

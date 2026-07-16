@@ -235,6 +235,29 @@ func (s *Server) DeleteSession(sessionID int64) error {
 	return s.store.ExpungeSession(sessionID)
 }
 
+// sweepOrphanedSessions closes sessions found locked at startup: the server
+// died mid-consolidation, and 'locked' has no live turn behind it anymore.
+// They are closed with an honest system note rather than re-consolidated —
+// automatically re-running a turn at startup risks a crash loop if the
+// consolidation itself is what killed the server. The agent's closure is
+// lost; the record says so plainly instead of pretending otherwise.
+func (s *Server) sweepOrphanedSessions() {
+	locked, err := s.store.LockedSessions()
+	if err != nil {
+		log.Printf("startup sweep: %v", err)
+		return
+	}
+	for _, sess := range locked {
+		log.Printf("session %d: found locked at startup (server died mid-consolidation); closing", sess.ID)
+		s.store.AppendMessage(sess.ID,
+			RoleSystem, "The server was interrupted during consolidation; this session was closed on restart. "+
+				"Documents and session log entries written before the interruption were preserved; anything after it was lost with the turn.")
+		if err := s.store.SetSessionStatus(sess.ID, SessionClosed); err != nil {
+			log.Printf("session %d: startup close: %v", sess.ID, err)
+		}
+	}
+}
+
 // reaper locks and consolidates sessions that have gone quiet. This is what
 // gives an abandoned session its closure: the agent is not left hanging
 // mid-thought forever merely because the administrator walked away.

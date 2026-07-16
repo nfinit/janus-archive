@@ -53,8 +53,11 @@ func (s *Server) modelInfo(a *Agent) *ModelInfo {
 
 func (s *Server) Store() *Store { return s.store }
 
-// Start launches background workers (the idle-session reaper).
+// Start recovers state that cannot outlive a process (sessions locked by a
+// consolidation that died with the server) and launches background workers
+// (the idle-session reaper).
 func (s *Server) Start(ctx context.Context) {
+	s.sweepOrphanedSessions()
 	go s.reaper(ctx)
 }
 

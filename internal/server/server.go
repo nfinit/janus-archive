@@ -22,6 +22,7 @@ type Server struct {
 	hub   *Hub
 	auth  *authManager
 	tmpl  *templates
+	meta  *modelMeta
 }
 
 func New(store *Store) (*Server, error) {
@@ -29,7 +30,23 @@ func New(store *Store) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Server{store: store, hub: NewHub(), auth: newAuthManager(), tmpl: tmpl}, nil
+	return &Server{store: store, hub: NewHub(), auth: newAuthManager(), tmpl: tmpl, meta: newModelMeta()}, nil
+}
+
+// modelInfo looks up catalog metadata for an agent's configured model.
+// Returns nil whenever the provider publishes no enrichment (bare
+// OpenAI-compatible servers list ids without names); callers fall back to
+// the raw slug.
+func (s *Server) modelInfo(a *Agent) *ModelInfo {
+	e, err := s.store.Endpoint(a.EndpointID)
+	if err != nil {
+		return nil
+	}
+	mi := s.meta.Lookup(e, a.Model)
+	if mi == nil || mi.Name == "" {
+		return nil
+	}
+	return mi
 }
 
 func (s *Server) Store() *Store { return s.store }

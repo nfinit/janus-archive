@@ -65,6 +65,7 @@ type agentData struct {
 	Agent         *Agent
 	EndpointName  string
 	Endpoints     []*Endpoint // for the change-model form
+	ModelInfo     *ModelInfo  // provider catalog metadata; nil = slug only
 	Binding       *Binding
 	Online        bool
 	LastSeenHuman string
@@ -82,6 +83,7 @@ func (s *Server) renderAgent(w http.ResponseWriter, r *http.Request, a *Agent, f
 		d.EndpointName = e.Name
 	}
 	d.Endpoints, _ = s.store.Endpoints()
+	d.ModelInfo = s.modelInfo(a)
 	if b, _ := s.store.AgentBinding(a.ID); b != nil {
 		d.Binding = b
 		d.Online = isOnline(b.LastSeen)
@@ -116,6 +118,19 @@ type sessionData struct {
 	// snapshot capture (0.0.0.4).
 	SystemContext string
 	Tools         []backend.Tool
+
+	// modelNames maps served-model slugs to provider display names, for
+	// transcript "via" labels. Missing entries render as the slug.
+	modelNames map[string]string
+}
+
+// ModelLabel returns the display name for a served-model slug, or the slug
+// itself when the provider publishes no catalog metadata for it.
+func (d *sessionData) ModelLabel(slug string) string {
+	if name, ok := d.modelNames[slug]; ok && name != "" {
+		return name
+	}
+	return slug
 }
 
 // ToolParams pretty-prints a tool's parameter schema for the context panel.
@@ -152,6 +167,24 @@ func (s *Server) renderSession(w http.ResponseWriter, r *http.Request, sess *Ses
 		d.SystemContext = sysCtx
 		if toolsJSON != "" {
 			json.Unmarshal([]byte(toolsJSON), &d.Tools) // best-effort; empty on failure
+		}
+	}
+	// Prettify per-turn "via" labels from the agent's endpoint catalog.
+	// One Lookup per distinct slug; the catalog itself is cached.
+	if e, err := s.store.Endpoint(a.EndpointID); err == nil {
+		d.modelNames = make(map[string]string)
+		for _, m := range msgs {
+			if m.Model == "" {
+				continue
+			}
+			if _, seen := d.modelNames[m.Model]; seen {
+				continue
+			}
+			name := ""
+			if mi := s.meta.Lookup(e, m.Model); mi != nil {
+				name = mi.Name
+			}
+			d.modelNames[m.Model] = name
 		}
 	}
 	s.render(w, "session", d)

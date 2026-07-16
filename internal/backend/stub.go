@@ -11,6 +11,9 @@ package backend
 //   - In a session, each admin message is answered with one terminal tool
 //     call (a harmless system-survey command), and the tool result is then
 //     acknowledged in prose.
+//   - An admin message containing "goodbye" or "end the session" makes the
+//     stub end the session by its own hand (session_end), exercising
+//     agent-initiated closure.
 //   - When the consolidation prompt arrives ("this session is
 //     concluding..."), the stub writes a document, then a session log
 //     entry, then says goodbye — exercising every server-side tool.
@@ -81,6 +84,17 @@ func (s *Stub) complete(_ context.Context, req Request) (*Turn, error) {
 		default:
 			return &Turn{Content: "STUB: consolidation complete. Until next wake.", StopReason: StopEndTurn}, nil
 		}
+	}
+
+	// Agent-initiated closure: the admin's phrasing invites the stub to end
+	// the session itself.
+	lastUserText := strings.ToLower(req.Messages[lastUser].Content)
+	if strings.Contains(lastUserText, "goodbye") || strings.Contains(lastUserText, "end the session") {
+		if !toolsUsedSince["session_end"] {
+			return toolTurn("STUB: understood — I will end this session myself.",
+				"session_end", "{}"), nil
+		}
+		return &Turn{Content: "STUB: session ended by my own choice. Farewell until next wake.", StopReason: StopEndTurn}, nil
 	}
 
 	if !toolsUsedSince["terminal"] {

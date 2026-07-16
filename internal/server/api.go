@@ -19,8 +19,8 @@ import (
 )
 
 const (
-	maxClientBody  = 4 << 20  // generous cap on client request bodies
-	maxPollWait    = 30       // seconds; ceiling on client-requested hold
+	maxClientBody  = 4 << 20 // generous cap on client request bodies
+	maxPollWait    = 30      // seconds; ceiling on client-requested hold
 	pollHardBudget = 35 * time.Second
 )
 

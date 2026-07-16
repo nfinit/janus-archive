@@ -49,7 +49,20 @@ func (s *Server) systemContext(a *Agent) (string, error) {
 	fmt.Fprintf(&b, "You are %s, an agent deployed through JANUS.\n\n", a.Name)
 
 	if a.ModelAware {
-		fmt.Fprintf(&b, "You are running on the model %q, reached through the endpoint configured by your administrator.\n\n", a.Model)
+		// When the provider publishes catalog metadata, use the model's
+		// display name and published knowledge cutoff: substrate facts, in
+		// JANUS's own voice. The provider's *description* is deliberately
+		// omitted — it is unfenced third-party marketing copy, and an agent
+		// that wants the grittier details can be given them in conversation
+		// and commit what it finds interesting to its own documents.
+		if mi := s.modelInfo(a); mi != nil {
+			fmt.Fprintf(&b, "You are running on %s (model identifier `%s`), reached through the endpoint configured by your administrator.\n\n", mi.Name, mi.ID)
+			if mi.KnowledgeCutoff != "" {
+				fmt.Fprintf(&b, "The model's training data has a published knowledge cutoff of %s. Events after that date are outside its training; for anything current, consult your host or your administrator rather than recall.\n\n", mi.KnowledgeCutoff)
+			}
+		} else {
+			fmt.Fprintf(&b, "You are running on the model %q, reached through the endpoint configured by your administrator.\n\n", a.Model)
+		}
 	}
 
 	b.WriteString("# Your charter\n\n")
@@ -151,6 +164,11 @@ func (s *Server) tools(a *Agent) ([]backend.Tool, error) {
 				"required":["content"]
 			}`),
 		},
+		{
+			Name:        "session_end",
+			Description: "End this session by your own choice. When your current turn finishes, the session concludes and you receive your consolidation turn — a chance to update your documents and write your session log before your context is discarded. Use it when the work is done or the conversation has reached its natural close. This takes effect without further confirmation.",
+			Parameters:  json.RawMessage(`{"type":"object","properties":{}}`),
+		},
 	}
 
 	binding, err := s.store.AgentBinding(a.ID)
@@ -180,24 +198,28 @@ func (s *Server) tools(a *Agent) ([]backend.Tool, error) {
 //
 // The caller has already appended the prompting user message to the
 // persisted conversation.
-func (s *Server) runTurn(ctx context.Context, a *Agent, sess *Session) error {
+// It reports endRequested=true when the agent called session_end during the
+// turn: the session should be consolidated once the turn is over. The agent
+// keeps the remainder of its turn — ending is something it does, not
+// something that happens to it mid-sentence.
+func (s *Server) runTurn(ctx context.Context, a *Agent, sess *Session) (endRequested bool, err error) {
 	be, err := s.backendFor(a)
 	if err != nil {
-		return err
+		return false, err
 	}
 	sysCtx, err := s.systemContext(a)
 	if err != nil {
-		return err
+		return false, err
 	}
 	tools, err := s.tools(a)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	for i := 0; i < maxToolIterations; i++ {
 		convo, err := s.store.Convo(sess.ID)
 		if err != nil {
-			return err
+			return endRequested, err
 		}
 
 		turn, err := be.Complete(ctx, backend.Request{
@@ -208,7 +230,7 @@ func (s *Server) runTurn(ctx context.Context, a *Agent, sess *Session) error {
 		})
 		if err != nil {
 			s.store.AppendMessage(sess.ID, RoleSystem, "Backend error: "+err.Error())
-			return err
+			return endRequested, err
 		}
 
 		if turn.Model != "" {
@@ -227,7 +249,7 @@ func (s *Server) runTurn(ctx context.Context, a *Agent, sess *Session) error {
 				Content: turn.Content,
 			})
 			s.store.TouchSession(sess.ID)
-			return nil
+			return endRequested, nil
 		}
 
 		if err := s.store.AppendConvo(sess.ID, backend.Message{
@@ -235,17 +257,23 @@ func (s *Server) runTurn(ctx context.Context, a *Agent, sess *Session) error {
 			Content:   turn.Content,
 			ToolCalls: turn.ToolCalls,
 		}); err != nil {
-			return err
+			return endRequested, err
 		}
 
 		for _, tc := range turn.ToolCalls {
-			result := s.execTool(ctx, a, sess, tc)
+			var result string
+			if tc.Name == "session_end" {
+				// Turn-control, not an action: handled here, not execTool.
+				result, endRequested = s.acceptSessionEnd(a, sess, endRequested)
+			} else {
+				result = s.execTool(ctx, a, sess, tc)
+			}
 			if err := s.store.AppendConvo(sess.ID, backend.Message{
 				Role:       backend.RoleTool,
 				ToolCallID: tc.ID,
 				Content:    result,
 			}); err != nil {
-				return err
+				return endRequested, err
 			}
 		}
 		s.store.TouchSession(sess.ID)
@@ -253,7 +281,24 @@ func (s *Server) runTurn(ctx context.Context, a *Agent, sess *Session) error {
 
 	s.store.AppendMessage(sess.ID, RoleSystem,
 		fmt.Sprintf("Tool-call limit (%d) reached; the turn was cut short.", maxToolIterations))
-	return nil
+	return endRequested, nil
+}
+
+// acceptSessionEnd answers a session_end call. Ending is honored without
+// confirmation — the agent's choice to conclude is respected the first time —
+// but only from an open session: during the consolidation turn the session
+// is already concluding, and the call is answered rather than recursed.
+func (s *Server) acceptSessionEnd(a *Agent, sess *Session, already bool) (string, bool) {
+	if sess.Status != SessionOpen {
+		return "The session is already concluding; this is your consolidation turn.", already
+	}
+	if already {
+		return "Already noted — the session will conclude when this turn finishes.", true
+	}
+	s.store.AppendMessage(sess.ID, RoleSystem, a.Name+" ended the session.")
+	return "Acknowledged. The session will conclude when you finish this turn, " +
+		"and you will then receive your consolidation turn to update your documents " +
+		"and write your session log. Say whatever you wish to close with.", true
 }
 
 // execTool runs one tool call and returns the string result handed back to

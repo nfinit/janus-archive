@@ -3,7 +3,9 @@
 <h1>{{$a.Name}} <span class="muted" style="font-size:15px">{{$a.Identifier}}</span></h1>
 <p class="sub">
 {{if eq $a.CharterStatus "approved"}}<span class="pill approved">charter approved</span>{{else}}<span class="pill draft">charter draft</span>{{end}}
-&nbsp;·&nbsp; model <code class="tok">{{$a.Model}}</code> via {{.EndpointName}}
+&nbsp;·&nbsp; model {{if .ModelInfo}}<b>{{.ModelInfo.Name}}</b> <code class="tok">{{$a.Model}}</code>{{else}}<code class="tok">{{$a.Model}}</code>{{end}} via {{.EndpointName}}
+{{if .ModelInfo}}{{if .ModelInfo.KnowledgeCutoff}}&nbsp;·&nbsp; <span class="muted">knowledge cutoff {{.ModelInfo.KnowledgeCutoff}}</span>{{end}}
+{{if .ModelInfo.ExpirationDate}}&nbsp;·&nbsp; <span class="pill draft">⚠ provider retires this model {{.ModelInfo.ExpirationDate}}</span>{{end}}{{end}}
 </p>
 
 <details style="margin:-6px 0 14px">

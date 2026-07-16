@@ -2,17 +2,19 @@ package server
 
 // Session lifecycle: open → locked → closed, or open → deleted.
 //
-// A wake begins a session. A session ends in one of three ways:
+// A wake begins a session. A session ends in one of four ways:
 //
 //   - "End Chat and Commit": the admin closes it deliberately.
+//   - session_end: the agent closes it deliberately — the same door from
+//     the other side of the table.
 //   - Idle timeout (1h): it locks and consolidates anyway — closure happens
 //     even when the human wandered off.
 //   - Delete: full expunge, available only while the session is open.
 //     Denies the agent closure; the deliberate price of keeping some
 //     things out of an agent's continuity.
 //
-// Paths one and two both run the consolidation turn: the structural moment
-// where the agent learns the session is ending and decides what it meant.
+// All but Delete run the consolidation turn: the structural moment where
+// the agent learns the session is ending and decides what it meant.
 
 import (
 	"context"
@@ -83,7 +85,16 @@ func (s *Server) SendMessage(ctx context.Context, sessionID int64, text string) 
 	}
 	s.store.TouchSession(sess.ID)
 
-	return s.runTurn(ctx, a, sess)
+	endRequested, err := s.runTurn(ctx, a, sess)
+	if err != nil {
+		return err
+	}
+	if endRequested {
+		// The agent chose to end the session; give it its consolidation
+		// turn now, exactly as if the admin had committed the chat.
+		return s.Consolidate(ctx, sess.ID)
+	}
+	return nil
 }
 
 // Consolidate locks a session and runs the closing turn, then closes it.
@@ -117,7 +128,7 @@ func (s *Server) Consolidate(ctx context.Context, sessionID int64) error {
 		return err
 	}
 
-	turnErr := s.runTurn(ctx, a, sess)
+	_, turnErr := s.runTurn(ctx, a, sess)
 	if turnErr != nil {
 		// The session still closes: a failed consolidation must not leave
 		// a session wedged open forever. The failure is recorded in the

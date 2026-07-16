@@ -18,9 +18,9 @@ import (
 
 // Config is the client's runtime configuration (from a config file/flags).
 type Config struct {
-	ServerURL string        // base URL of the JANUS server
-	Token     string        // this client instance's binding token
-	Wait      int           // poll hold time in seconds; 0 = plain polling
+	ServerURL string // base URL of the JANUS server
+	Token     string // this client instance's binding token
+	Wait      int    // poll hold time in seconds; 0 = plain polling
 	Terminal  TerminalConfig
 	// RetryDelay is how long to wait after a failed poll before retrying.
 	RetryDelay time.Duration

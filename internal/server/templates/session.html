@@ -32,7 +32,7 @@
 <div class="chat" id="chat">
 {{range .Messages}}
 <div class="msg {{.Role}}">
-<div class="who">{{$.SpeakerLabel .Role}}{{if .Model}} · via <code class="tok">{{.Model}}</code>{{end}}</div>
+<div class="who">{{$.SpeakerLabel .Role}}{{if .Model}} · via <code class="tok" title="{{.Model}}">{{$.ModelLabel .Model}}</code>{{end}}</div>
 <pre>{{.Content}}</pre>
 </div>
 {{end}}
@@ -54,7 +54,7 @@
 </div>
 </form>
 </div>
-<p class="muted" style="margin-top:8px"><b>End Chat and Commit</b> gives the agent closure — a turn to decide what this session meant. <b>Delete</b> denies that closure and expunges the session; use it for context that should not persist. After an hour of silence the session consolidates on its own.</p>
+<p class="muted" style="margin-top:8px"><b>End Chat and Commit</b> gives the agent closure — a turn to decide what this session meant. <b>Delete</b> denies that closure and expunges the session; use it for context that should not persist. After an hour of silence the session consolidates on its own. The agent holds the same door: it may end the session itself, with the same consolidation turn.</p>
 {{else}}
 <div class="card" style="margin-top:16px"><p class="muted">This session has ended. Its transcript is retained as a record; the agent's memory of it is whatever it wrote into its documents and session log during consolidation.</p></div>
 {{end}}

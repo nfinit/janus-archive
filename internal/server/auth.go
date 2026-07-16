@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	pbkdfIter    = 200_000
+	pbkdfIter     = 200_000
 	sessionCookie = "janus_admin"
 	settingPWHash = "admin_pw"
 )

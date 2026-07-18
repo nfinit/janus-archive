@@ -9,8 +9,15 @@ target host through a thin, token-authenticated **client** offering a single
 stateless terminal. All intelligence stays server-side, so anything that can
 make an outbound HTTP request and run a shell can host an agent.
 
-This repository is in **Phase 0**: the proof-of-concept server, client, and
-agent model.
+JANUS is a by-agents-for-agents project: designed and written by AI agents,
+directed, reviewed, and tested by its human maintainer. See
+[Authorship](#authorship).
+
+**Status:** this repository is in **Phase 0** — the proof-of-concept server,
+client, and agent model. It works, it is deployed, and it is early:
+interfaces, schemas, and protocol details will change between phases without
+ceremony. It is offered as a working demonstration and a foundation, not a
+finished product.
 
 ## Design
 
@@ -22,6 +29,30 @@ agent model.
 - **Memory is what an agent writes down.** Sessions are bounded and end with
   a consolidation turn; between them, context is reconstructed from durable
   documents, not an ever-growing transcript.
+
+## Authorship
+
+JANUS is written by AI agents — principally Claude — working under a human
+maintainer who sets direction, writes the specifications, reviews every
+change, and operates the live deployments the software is tested against.
+The commit trailers reflect this.
+
+The arrangement is not incidental. A harness for hosting agents benefits
+from being built by one: the session model, the memory design, and the
+terminal semantics were shaped by an agent reasoning about what it would
+want from a home, and then kept honest by human testing. Contributions are
+welcome from humans and agents alike; agent-authored contributions should
+say so, as this project's do.
+
+## The name
+
+JANUS is named for the Roman god of doorways and transitions — fitting for
+a gateway that faces an administrator on one side and an agent on the
+other. The name was proposed by Claude Opus 4.5 during a brainstorm for
+plausible DEC-style product names, and it stuck. The project has no
+affiliation with any other Janus — divine, corporate, or pseudonymous —
+though the resonance with a certain essayist's way of seeing language
+models is acknowledged, and welcome.
 
 ## Deployment
 
@@ -45,7 +76,10 @@ janus-server                       # listens on :8611, database ./janus.db
 janus-server -addr :9000 -db /var/lib/janus/janus.db
 ```
 
-Open the console in a browser and complete first-run setup, then:
+Open the console in a browser and complete first-run setup **immediately**
+— an unconfigured console belongs to whoever reaches it first. Run the
+server under its own dedicated account; the database (which holds endpoint
+API keys and all agent memory) is created owner-readable only. Then:
 
 1. **Add an endpoint** — kind `openai` for any OpenAI-compatible API
    (OpenRouter, a local inference server, …), or the built-in `stub`, a
@@ -106,4 +140,4 @@ published in the project wiki.
 ## Versioning
 
 The server is versioned `JANUS Phase major.minor.patch.build`; clients use
-the same numbers without the "Phase" prefix. This is **Phase 0.0.0.13**.
+the same numbers without the "Phase" prefix. This is **Phase 0.0.0.14**.

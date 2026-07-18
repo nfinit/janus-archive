@@ -7,6 +7,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log"
+	"os"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -36,7 +38,21 @@ func OpenStore(path string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
+	restrictDBFiles(path)
 	return &Store{db: db}, nil
+}
+
+// restrictDBFiles narrows the database files to owner-only access. The
+// database holds endpoint API keys in plaintext and the admin password
+// hash; on a multi-user host — which a JANUS host is by design, agents
+// being ordinary local users — it must not be world-readable. Best-effort:
+// a filesystem that refuses chmod should not stop the server.
+func restrictDBFiles(path string) {
+	for _, p := range []string{path, path + "-wal", path + "-shm"} {
+		if err := os.Chmod(p, 0o600); err != nil && !os.IsNotExist(err) {
+			log.Printf("store: could not restrict %s: %v", p, err)
+		}
+	}
 }
 
 // migrate applies additive schema changes to databases created by an

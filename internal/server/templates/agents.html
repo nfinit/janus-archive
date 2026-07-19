@@ -8,8 +8,8 @@
 {{range .Agents}}
 <tr>
 <td><a href="/agents/{{.Agent.ID}}">{{.Agent.Identifier}}</a></td>
-<td>{{.Agent.Name}}</td>
-<td>{{if eq .Agent.CharterStatus "approved"}}<span class="pill approved">approved</span>{{else}}<span class="pill draft">draft</span>{{end}}</td>
+<td>{{if .Agent.Name}}{{.Agent.Name}}{{else}}<span class="muted">(unnamed)</span>{{end}}</td>
+<td>{{if not .Agent.Name}}<span class="pill draft">staged</span>{{else if eq .Agent.CharterStatus "approved"}}<span class="pill approved">approved</span>{{else}}<span class="pill draft">draft</span>{{end}}</td>
 <td>{{if .Online}}<span class="pill on">● {{.Host}}</span>{{else if .Bound}}<span class="pill off">○ {{.Host}}</span>{{else}}<span class="muted">unbound</span>{{end}}</td>
 <td style="text-align:right">{{if eq .Agent.CharterStatus "approved"}}<a class="btn sm" href="/agents/{{.Agent.ID}}#wake">Wake</a>{{end}}</td>
 </tr>

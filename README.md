@@ -140,4 +140,4 @@ published in the project wiki.
 ## Versioning
 
 The server is versioned `JANUS Phase major.minor.patch.build`; clients use
-the same numbers without the "Phase" prefix. This is **Phase 0.0.0.14**.
+the same numbers without the "Phase" prefix. This is **Phase 0.0.0.16**.

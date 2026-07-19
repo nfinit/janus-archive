@@ -1,6 +1,6 @@
 {{define "content"}}
 <h1>Create an agent</h1>
-<p class="sub">Define an agent. After creation, its model drafts a charter for your approval.</p>
+<p class="sub">Define an agent. Named here, it proceeds straight to a charter draft; left unnamed, it is staged for naming as its own step.</p>
 
 {{if not .Endpoints}}
 <div class="flash err">You need at least one <a href="/endpoints">endpoint</a> before creating an agent.</div>
@@ -10,9 +10,9 @@
 <label>Agent identifier <span class="muted">— unique server-side handle, e.g. iris-octane2</span></label>
 <input type="text" name="identifier" required>
 
-<label>Agent name <span class="muted">— what the agent goes by; leave blank to let the model choose</span></label>
+<label>Agent name <span class="muted">— what the agent goes by; leave blank to name it in a separate step (with model suggestions) after creation</span></label>
 <div class="row">
-<input type="text" name="name" placeholder="(blank = model suggests one)" style="flex:1">
+<input type="text" name="name" placeholder="(blank = staged naming on the agent page)" style="flex:1">
 </div>
 
 <label>Endpoint</label>
@@ -28,7 +28,7 @@
 <label>Deployment primer <span class="muted">— host, local context, goals, desired posture</span></label>
 <textarea name="primer" required placeholder="You are being deployed to a Silicon Graphics Octane2 running IRIX 6.5..."></textarea>
 
-<div style="margin-top:16px"><button>Create &amp; draft charter</button></div>
+<div style="margin-top:16px"><button>Create agent</button></div>
 </form>
 </div>
 {{end}}

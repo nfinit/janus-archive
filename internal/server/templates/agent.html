@@ -1,8 +1,8 @@
 {{define "content"}}
 {{$a := .Agent}}
-<h1>{{$a.Name}} <span class="muted" style="font-size:15px">{{$a.Identifier}}</span></h1>
+<h1>{{if $a.Name}}{{$a.Name}} <span class="muted" style="font-size:15px">{{$a.Identifier}}</span>{{else}}{{$a.Identifier}}{{end}}</h1>
 <p class="sub">
-{{if eq $a.CharterStatus "approved"}}<span class="pill approved">charter approved</span>{{else}}<span class="pill draft">charter draft</span>{{end}}
+{{if not $a.Name}}<span class="pill draft">staged — unnamed</span>{{else if eq $a.CharterStatus "approved"}}<span class="pill approved">charter approved</span>{{else}}<span class="pill draft">charter draft</span>{{end}}
 &nbsp;·&nbsp; model {{if .ModelInfo}}<b>{{.ModelInfo.Name}}</b> <code class="tok">{{$a.Model}}</code>{{else}}<code class="tok">{{$a.Model}}</code>{{end}} via {{.EndpointName}}
 {{if .ModelInfo}}{{if .ModelInfo.KnowledgeCutoff}}&nbsp;·&nbsp; <span class="muted">knowledge cutoff {{.ModelInfo.KnowledgeCutoff}}</span>{{end}}
 {{if .ModelInfo.ExpirationDate}}&nbsp;·&nbsp; <span class="pill draft">⚠ provider retires this model {{.ModelInfo.ExpirationDate}}</span>{{end}}{{end}}
@@ -32,7 +32,28 @@
 <p class="muted" style="font-size:12px;margin-top:6px">For outages, provider changes, deprecated slugs, or a model entered wrong at creation. Charter, memory, and binding are untouched; the change takes effect on the agent's next turn. Nothing is validated against the provider — a bad slug will surface as a backend error in the next session.</p>
 </details>
 
+{{if not $a.Name}}
+<h2>Naming</h2>
+<div class="card">
+<p class="muted">This agent is staged but unnamed. Name it directly, or have its model suggest one. The charter comes after the name — it is written in the agent's own voice, under it.</p>
+<form method="post" action="/agents/{{$a.ID}}/name" class="row" style="margin-top:10px">
+<input type="text" name="name" value="{{.SuggestedName}}" placeholder="agent name" required style="width:260px">
+<button class="btn sm ok">Set name</button>
+</form>
+<form method="post" action="/agents/{{$a.ID}}/name/suggest" style="margin-top:12px">
+<details {{if or .SuggestedName .NameGuidance}}open{{end}}>
+<summary class="muted" style="cursor:pointer;font-size:13px">context for the namer — optional; used for the suggestion only, never stored, and the agent never sees it</summary>
+<textarea name="guidance" style="min-height:60px;margin-top:6px" placeholder="e.g. facts the primer deliberately withholds, such as the hardware this agent will inhabit">{{.NameGuidance}}</textarea>
+</details>
+<div style="margin-top:8px"><button class="btn sm ghost">{{if .SuggestedName}}Suggest another{{else}}Suggest a name{{end}}</button></div>
+</form>
+</div>
+{{end}}
+
 <h2>Charter</h2>
+{{if not $a.Name}}
+<div class="card"><p class="muted">Awaiting a name.</p></div>
+{{else}}
 <div class="card">
 {{if $a.Charter}}<pre>{{$a.Charter}}</pre>{{else}}<p class="muted">No charter drafted yet.</p>{{end}}
 <div class="row" style="margin-top:12px">
@@ -45,6 +66,7 @@
 {{end}}
 </div>
 </div>
+{{end}}
 
 <h2>Deployment</h2>
 <div class="card">

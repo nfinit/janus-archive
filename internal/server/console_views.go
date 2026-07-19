@@ -114,7 +114,10 @@ func (s *Server) dashboardVM(r *http.Request) (*dashboardData, error) {
 	// retirements are advance warning.
 	for _, row := range rows {
 		href := "/agents/" + strconv.FormatInt(row.Agent.ID, 10)
-		if row.Agent.CharterStatus != "approved" {
+		if row.Agent.Name == "" {
+			d.Attention = append(d.Attention, attentionItem{
+				Text: row.Agent.Identifier + " — staged, awaiting a name", Href: href})
+		} else if row.Agent.CharterStatus != "approved" {
 			d.Attention = append(d.Attention, attentionItem{
 				Text: row.Agent.Name + " — charter awaiting review and approval", Href: href})
 		}
@@ -151,11 +154,27 @@ type agentData struct {
 	Sessions      []*Session
 	Documents     []*Document
 	SessionLogs   []*SessionLog
+
+	// Staged-naming state, echoed through renders only — never stored.
+	SuggestedName string
+	NameGuidance  string
 }
 
 func (s *Server) renderAgent(w http.ResponseWriter, r *http.Request, a *Agent, flash, kind string) {
-	d := &agentData{pageData: s.base(a.Name, r), Agent: a}
+	s.renderAgentStage(w, r, a, flash, kind, "", "")
+}
+
+// renderAgentStage renders the agent page carrying staged-naming echoes: a
+// model-suggested name for the admin to accept or edit, and the namer
+// guidance as typed so re-rolls keep it without the server storing it.
+func (s *Server) renderAgentStage(w http.ResponseWriter, r *http.Request, a *Agent, flash, kind, suggested, guidance string) {
+	title := a.Name
+	if title == "" {
+		title = a.Identifier
+	}
+	d := &agentData{pageData: s.base(title, r), Agent: a}
 	d.Flash, d.FlashKind = flash, kind
+	d.SuggestedName, d.NameGuidance = suggested, guidance
 
 	if e, err := s.store.Endpoint(a.EndpointID); err == nil {
 		d.EndpointName = e.Name

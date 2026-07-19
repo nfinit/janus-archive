@@ -40,6 +40,8 @@ func (s *Server) hAgentRoutes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch parts[2] {
+	case "name":
+		s.hName(ctx, w, r, a, parts)
 	case "charter":
 		s.hCharter(ctx, w, r, a, parts)
 	case "binding":
@@ -66,6 +68,10 @@ func (s *Server) hCharter(ctx context.Context, w http.ResponseWriter, r *http.Re
 	}
 	switch parts[3] {
 	case "draft":
+		if a.Name == "" {
+			s.renderAgent(w, r, a, "Name the agent before drafting its charter — the charter is written in its own voice, under its name.", "err")
+			return
+		}
 		charter, err := s.DraftCharter(ctx, a, r.FormValue("guidance"))
 		if err != nil {
 			s.renderAgent(w, r, a, "Charter draft failed: "+err.Error(), "err")
@@ -142,6 +148,55 @@ func (s *Server) hPrimer(ctx context.Context, w http.ResponseWriter, r *http.Req
 		Agent *Agent
 	}{s.base("Primer", r), a}
 	s.render(w, "primer", d)
+}
+
+// hName handles the staged-naming controls for an unnamed agent:
+// /agents/{id}/name sets the name; /agents/{id}/name/suggest asks the
+// agent's model for one, optionally informed by namer-only guidance that is
+// used for the single suggestion call and never stored — it can therefore
+// carry facts the primer deliberately withholds. Names are set once; a
+// named agent has no rename control by design (a name embedded in a
+// charter and self-authored documents is identity, not configuration).
+func (s *Server) hName(ctx context.Context, w http.ResponseWriter, r *http.Request, a *Agent, parts []string) {
+	if r.Method != http.MethodPost {
+		http.NotFound(w, r)
+		return
+	}
+	if a.Name != "" {
+		s.renderAgent(w, r, a, "This agent is already named; names are set once.", "err")
+		return
+	}
+
+	if len(parts) == 4 && parts[3] == "suggest" {
+		guidance := strings.TrimSpace(r.FormValue("guidance"))
+		name, err := s.SuggestName(ctx, a.EndpointID, a.Model, a.Primer, a.ModelAware, guidance)
+		if err != nil || name == "" {
+			s.renderAgentStage(w, r, a, "Name suggestion failed: "+errText(err), "err", "", guidance)
+			return
+		}
+		s.renderAgentStage(w, r, a, "", "", name, guidance)
+		return
+	}
+
+	name := strings.TrimSpace(r.FormValue("name"))
+	if name == "" {
+		s.renderAgent(w, r, a, "Name cannot be empty.", "err")
+		return
+	}
+	a.Name = name
+	if err := s.store.UpdateAgent(a); err != nil {
+		a.Name = ""
+		s.renderAgent(w, r, a, "Could not set name: "+err.Error(), "err")
+		return
+	}
+	redirect(w, r, "/agents/"+strconv.FormatInt(a.ID, 10))
+}
+
+func errText(err error) string {
+	if err == nil {
+		return "the model returned an empty name"
+	}
+	return err.Error()
 }
 
 // hIdentifier renames the agent's server-side handle. The identifier never

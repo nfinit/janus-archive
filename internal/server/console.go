@@ -234,25 +234,25 @@ func (s *Server) createAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
-	defer cancel()
-
-	// Optionally let the model name itself.
-	if a.Name == "" {
-		name, err := s.SuggestName(ctx, endpointID, a.Model, a.Primer, a.ModelAware)
-		if err != nil || name == "" {
-			a.Name = a.Identifier // fall back to the handle
-		} else {
-			a.Name = name
-		}
-	}
-
 	if err := s.store.CreateAgent(a); err != nil {
 		http.Error(w, "could not create agent: "+err.Error(), 500)
 		return
 	}
 
-	// Draft the initial charter now so the admin lands on a reviewable draft.
+	// A blank name means staged naming: the agent is created unnamed, and
+	// naming is its own step on the agent page (with optional namer-only
+	// guidance). The charter waits for the name — it is written in the
+	// agent's own voice, under it.
+	if a.Name == "" {
+		redirect(w, r, "/agents/"+strconv.FormatInt(a.ID, 10))
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
+	defer cancel()
+
+	// Named directly: draft the initial charter now so the admin lands on a
+	// reviewable draft.
 	if charter, err := s.DraftCharter(ctx, a, ""); err == nil {
 		a.Charter = charter
 		s.store.UpdateAgent(a)

@@ -12,7 +12,7 @@ const (
 	Major = 0
 	Minor = 0
 	Patch = 0
-	Build = 14
+	Build = 16
 )
 
 // Number returns the bare version number, e.g. "0.0.0.1".

@@ -14,7 +14,13 @@ import (
 
 // SuggestName asks the agent's model to choose a name for itself given the
 // primer. Optional: the admin may name the agent directly instead.
-func (s *Server) SuggestName(ctx context.Context, endpointID int64, model, primer string, modelAware bool) (string, error) {
+//
+// guidance is namer-only context: it reaches this one call and is never
+// stored, so it can carry facts the primer deliberately withholds (e.g. the
+// hardware the agent is meant to discover on its own) without those facts
+// ever entering the agent's context. Names always arrive from outside;
+// what matters for discovery is what enters the agent's wakes.
+func (s *Server) SuggestName(ctx context.Context, endpointID int64, model, primer string, modelAware bool, guidance string) (string, error) {
 	be, err := s.backendForEndpoint(endpointID)
 	if err != nil {
 		return "", err
@@ -26,12 +32,19 @@ func (s *Server) SuggestName(ctx context.Context, endpointID int64, model, prime
 	}
 	sys.WriteString("# Deployment primer\n\n")
 	sys.WriteString(strings.TrimSpace(primer))
+	if g := strings.TrimSpace(guidance); g != "" {
+		sys.WriteString("\n\n# Additional context from the administrator\n\nThis is offered to inform the choice of name only; the agent will not see it:\n\n" + g)
+	}
 
+	// Generous despite the one-word answer: reasoning models spend
+	// completion tokens thinking before any content appears, and a tight
+	// cap starves them into an empty reply (HTTP 200, no name). firstLine
+	// keeps the result honest regardless of how much arrives.
 	turn, err := be.Complete(ctx, backend.Request{
 		Model:     model,
 		System:    sys.String(),
 		Messages:  []backend.Message{{Role: backend.RoleUser, Content: "Suggest a name for yourself."}},
-		MaxTokens: 64,
+		MaxTokens: 2048,
 	})
 	if err != nil {
 		return "", err
@@ -63,11 +76,14 @@ func (s *Server) DraftCharter(ctx context.Context, a *Agent, guidance string) (s
 		userMsg = "Draft the charter. The administrator adds this steering: " + strings.TrimSpace(guidance)
 	}
 
+	// Budget covers reasoning tokens plus the charter itself; reasoning
+	// models deliberate before writing, and that deliberation bills against
+	// max_tokens.
 	turn, err := be.Complete(ctx, backend.Request{
 		Model:     a.Model,
 		System:    sys.String(),
 		Messages:  []backend.Message{{Role: backend.RoleUser, Content: userMsg}},
-		MaxTokens: 1500,
+		MaxTokens: 8192,
 	})
 	if err != nil {
 		return "", err
